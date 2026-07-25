@@ -9,15 +9,33 @@ CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
 MY_TELEGRAM_ID = "LowCull"  # آیدی تلگرام بدون @
 
-# --- منوی اصلی شیشه‌ای ---
+# --- منوی اصلی شیشه‌ای (دقیقاً مطابق عکس جدید) ---
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
-    b1 = types.InlineKeyboardButton("🚀 خرید VPN", callback_data="cat_tunnel")
-    b2 = types.InlineKeyboardButton("📱 شماره مجازی", callback_data="buy_num")
-    b3 = types.InlineKeyboardButton("🤖 ساخت ربات تلگرام", callback_data="buy_bot")
-    b4 = types.InlineKeyboardButton("💬 پشتیبانی", callback_data="support")
-    markup.add(b1, b2)
+    
+    b1 = types.InlineKeyboardButton("🛒 خرید اشتراک جدید", callback_data="cat_tunnel")
+    b2 = types.InlineKeyboardButton("🆓 دریافت اشتراک تست", callback_data="free_test")
+    
+    b3 = types.InlineKeyboardButton("🏷 اشتراک‌های من", callback_data="my_subs")
+    b4 = types.InlineKeyboardButton("📄 فاکتورهای من", callback_data="my_invoices")
+    
+    b5 = types.InlineKeyboardButton("👤 حساب کاربری", callback_data="user_account")
+    
+    # دکمه‌های پشتیبانی و آموزش اتصال با لینک مستقیم به آیدی شما
+    b6 = types.InlineKeyboardButton("📞 پشتیبانی", url=f"https://t.me/{MY_TELEGRAM_ID}")
+    b7 = types.InlineKeyboardButton("📱 آموزش اتصال", url=f"https://t.me/{MY_TELEGRAM_ID}")
+    
+    b8 = types.InlineKeyboardButton("↗ سرویس گیمینگ", callback_data="gaming_service")
+    b9 = types.InlineKeyboardButton("🤖 ساخت ربات تلگرام", callback_data="buy_bot")
+    b10 = types.InlineKeyboardButton("📱 شماره مجازی", callback_data="buy_num")
+
+    markup.add(b1)
+    markup.add(b2)
     markup.add(b3, b4)
+    markup.add(b5)
+    markup.add(b6, b7)
+    markup.add(b8)
+    markup.add(b9, b10)
     return markup
 
 # --- دستور /start ---
@@ -25,7 +43,7 @@ def main_inline_keyboard():
 def send_welcome(message):
     bot.send_message(
         message.chat.id,
-        f"سلام {message.from_user.first_name} عزیز! 🌟\nبه فروشگاه خوش آمدید. لطفاً گزینه مورد نظر خود را انتخاب کنید:",
+        "لطفاً یکی از گزینه‌های زیر رو انتخاب کنید:",
         reply_markup=main_inline_keyboard()
     )
 
@@ -38,7 +56,7 @@ def callback_listener(call):
     # رفع چرخش و حالت انتظار روی دکمه‌های شیشه‌ای
     bot.answer_callback_query(call.id)
 
-    # ۱. بخش VPN (دقیقاً با متن و ظاهر عکس)
+    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها)
     if call.data == "cat_tunnel":
         markup = types.InlineKeyboardMarkup(row_width=1)
         p1 = types.InlineKeyboardButton("5 گیگ | 50 تومان (بدون زمان)", callback_data="plan_5gb")
@@ -73,47 +91,59 @@ def callback_listener(call):
         )
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
-    # ۳. بخش شماره مجازی
+    # ۳. سایر بخش‌های منو
+    elif call.data == "free_test":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
+        bot.edit_message_text("🎁 برای دریافت اشتراک تست، لطفاً به پیوی پشتیبانی پیام دهید.", chat_id, message_id, reply_markup=markup)
+
+    elif call.data == "my_subs":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
+        bot.edit_message_text("🏷 شما در حال حاضر هیچ اشتراک فعالی ندارید.", chat_id, message_id, reply_markup=markup)
+
+    elif call.data == "my_invoices":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
+        bot.edit_message_text("📄 فاکتور ثبت‌شده‌ای یافت نشد.", chat_id, message_id, reply_markup=markup)
+
+    elif call.data == "user_account":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
+        user = call.from_user
+        msg = f"👤 **حساب کاربری شما:**\n\nنام: {user.first_name}\nشناسه کاربری: `{user.id}`"
+        bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
+
+    elif call.data == "gaming_service":
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
+        bot.edit_message_text("↗ **سرویس گیمینگ اختصاصی:**\nبه زودی پلن‌های مخصوص بازی اضافه خواهند شد.", chat_id, message_id, reply_markup=markup)
+
     elif call.data == "buy_num":
         markup = types.InlineKeyboardMarkup(row_width=1)
-        back = types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
-        markup.add(back)
+        markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
         msg = (
             "📱 **خرید شماره مجازی:**\n\n"
             "🇺🇸 **ریجن آمریکا (+1):** ۲۵۰,۰۰۰ تومان\n"
             "🇨🇦 **ریجن کانادا (+1):** ۲۵۰,۰۰۰ تومان\n\n"
-            f"💳 جهت خرید، مبلغ را به کارت زیر واریز کرده و **عکس فیش** را همین‌جا بفرستید:\n\n"
-            f"`{CARD_NUMBER}`\n"
-            f"بنام: **{CARD_NAME}**\n\n"
-            "⚠️ همراه فیش مشخص کنید کدام ریجن را می‌خواهید."
+            f"💳 کارت واریز:\n`{CARD_NUMBER}`\nبنام: **{CARD_NAME}**"
         )
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
-    # ۴. بخش ساخت ربات
     elif call.data == "buy_bot":
         markup = types.InlineKeyboardMarkup(row_width=1)
-        pv_btn = types.InlineKeyboardButton("💬 گفتگو و ثبت سفارش در پیوی", url=f"https://t.me/{MY_TELEGRAM_ID}")
-        back = types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
-        markup.add(pv_btn, back)
-        msg = (
-            "🤖 **خدمات طراحی و ساخت ربات تلگرام:**\n\n"
-            "برای سفارش ربات اختصاصی، توضیحات و هماهنگی، مستقیم روی دکمه زیر کلیک کنید تا وارد پیوی بشید:"
+        markup.add(
+            types.InlineKeyboardButton("💬 گفتگو در پیوی", url=f"https://t.me/{MY_TELEGRAM_ID}"),
+            types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
         )
-        bot.edit_message_text(msg, chat_id, message_id, reply_markup=markup)
+        bot.edit_message_text("🤖 برای سفارش ساخت ربات تلگرام، به پیوی مراجعه کنید:", chat_id, message_id, reply_markup=markup)
 
-    # ۵. پشتیبانی
-    elif call.data == "support":
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        pv_btn = types.InlineKeyboardButton("💬 پیام به پشتیبانی", url=f"https://t.me/{MY_TELEGRAM_ID}")
-        back = types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
-        markup.add(pv_btn, back)
-        bot.edit_message_text("💬 برای ارتباط با پشتیبانی، می‌توانید فیش/پیام خود را همین‌جا بفرستید یا مستقیم به پیوی پیام بدهید:", chat_id, message_id, reply_markup=markup)
-
-    # ۶. بازگشت به منوی اصلی
+    # ۴. بازگشت به منوی اصلی
     elif call.data == "main_menu":
         bot.edit_message_text(
-            f"سلام {call.from_user.first_name} عزیز! 🌟\nبه فروشگاه خوش آمدید. لطفاً گزینه مورد نظر خود را انتخاب کنید:",
-            chat_id, message_id, reply_markup=main_inline_keyboard()
+            "لطفاً یکی از گزینه‌های زیر رو انتخاب کنید:",
+            chat_id, message_id,
+            reply_markup=main_inline_keyboard()
         )
 
 # --- دریافت فیش واریزی و ارسال برای ادمین ---
@@ -132,5 +162,5 @@ def handle_receipt(message):
     )
     bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown")
 
-print("ربات روشن شد...")
+print("ربات با منوی جدید روشن شد...")
 bot.infinity_polling()
