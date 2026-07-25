@@ -9,7 +9,7 @@ CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
 MY_TELEGRAM_ID = "LowCull"  # آیدی تلگرام بدون @
 
-# --- منوی اصلی شیشه‌ای (دقیقاً مطابق عکس جدید) ---
+# --- منوی اصلی شیشه‌ای (جدید و منطبق بر درخواست شما) ---
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     
@@ -21,7 +21,7 @@ def main_inline_keyboard():
     
     b5 = types.InlineKeyboardButton("👤 حساب کاربری", callback_data="user_account")
     
-    # دکمه‌های پشتیبانی و آموزش اتصال با لینک مستقیم به آیدی شما
+    # دکمه‌های پشتیبانی و آموزش اتصال لینک شده به آیدی شما
     b6 = types.InlineKeyboardButton("📞 پشتیبانی", url=f"https://t.me/{MY_TELEGRAM_ID}")
     b7 = types.InlineKeyboardButton("📱 آموزش اتصال", url=f"https://t.me/{MY_TELEGRAM_ID}")
     
@@ -53,10 +53,10 @@ def callback_listener(call):
     chat_id = call.message.chat.id
     message_id = call.message.message_id
 
-    # رفع چرخش و حالت انتظار روی دکمه‌های شیشه‌ای
+    # رفع حالت انتظار روی دکمه‌ها
     bot.answer_callback_query(call.id)
 
-    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها)
+    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها با ظاهر درخواستی)
     if call.data == "cat_tunnel":
         markup = types.InlineKeyboardMarkup(row_width=1)
         p1 = types.InlineKeyboardButton("5 گیگ | 50 تومان (بدون زمان)", callback_data="plan_5gb")
@@ -74,7 +74,7 @@ def callback_listener(call):
             chat_id, message_id, reply_markup=markup
         )
 
-    # ۲. صفحه واریز کارت به کارت بعد از انتخاب پلن
+    # ۲. صفحه واریز کارت به کارت پس از انتخاب پلن
     elif call.data.startswith("plan_"):
         plan_name = call.data.replace("plan_", "").upper()
         markup = types.InlineKeyboardMarkup(row_width=1)
