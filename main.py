@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 
-API_TOKEN = 'توکن_ربات_شما'  # توکن رباتت از BotFather رو اینجا بزار
+API_TOKEN = '8369466564:AAE5Bf6LjUPAGTzSwnry2donqyrvlO7Dxoo'
 MY_TELEGRAM_ID = "LowCull"  # آیدی پشتیبانی
 
 bot = telebot.TeleBot(API_TOKEN)
