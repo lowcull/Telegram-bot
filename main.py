@@ -398,7 +398,8 @@ def handle_text_messages(message):
             f"به نام: **{CARD_NAME}**\n\n"
             "📸 **یا اگر می‌خواهید با کیف پول پرداخت کنید روی دکمه زیر بزنید، یا عکس فیش واریزی را همین‌جا ارسال کنید.**"
         )
-        bot.reply_to(message, msg, parse_mode="Markdown", reply_markup=markup)
+        # ارسال به صورت پیام جدید تا دکمه‌ها درست زیر آخرین پیام قرار گیرند
+        bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
@@ -453,4 +454,3 @@ def handle_receipt(message):
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
 
 bot.infinity_polling(skip_pending=True)
-                
