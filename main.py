@@ -9,7 +9,7 @@ CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
 MY_TELEGRAM_ID = "LowCull"  # آیدی تلگرام بدون @
 
-# --- منوی اصلی شیشه‌ای (جدید و منطبق بر درخواست شما) ---
+# --- منوی اصلی شیشه‌ای (دقیقاً همون منویی که خواستی) ---
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
     
@@ -56,7 +56,7 @@ def callback_listener(call):
     # رفع حالت انتظار روی دکمه‌ها
     bot.answer_callback_query(call.id)
 
-    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها با ظاهر درخواستی)
+    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها با ظاهر متنی که خواستی)
     if call.data == "cat_tunnel":
         markup = types.InlineKeyboardMarkup(row_width=1)
         p1 = types.InlineKeyboardButton("5 گیگ | 50 تومان (بدون زمان)", callback_data="plan_5gb")
