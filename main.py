@@ -58,7 +58,7 @@ def get_marzban_token():
         print("Panel Token Error:", e)
     return None
 
-def create_marzban_user(username, data_limit_gb, expire_days=30):
+def create_marzban_user(username, data_limit_gb, expire_days=None):
     token = get_marzban_token()
     if not token:
         return None
@@ -70,7 +70,7 @@ def create_marzban_user(username, data_limit_gb, expire_days=30):
     }
     
     # محاسبه حجم بر حسب بایت
-    if data_limit_gb < 1:  # برای تست ۱۰۰ مگابایت (0.1 گیگ)
+    if data_limit_gb < 1:  # تست ۱۰۰ مگابایت
         data_limit_bytes = int(100 * 1024 * 1024)
     else:
         data_limit_bytes = int(data_limit_gb) * 1024 * 1024 * 1024
@@ -78,15 +78,17 @@ def create_marzban_user(username, data_limit_gb, expire_days=30):
     payload = {
         "username": username,
         "data_limit": data_limit_bytes,
-        "expire_comb": "days",
-        "expire": expire_days,
-        "proxies": {
-            "vless": {}
-        },
-        "inbounds": {
-            "vless": ["VLESS"]
-        }
+        "proxies": {"vless": {}},
+        "inbounds": {"vless": ["VLESS"]}
     }
+    
+    # اگر تاریخ انقضا داده شد (برای تست)
+    if expire_days:
+        payload["expire_comb"] = "days"
+        payload["expire"] = expire_days
+    else:
+        # دائمی (بدون محدودیت زمانی یا تاریخ انقضای بسیار دور)
+        payload["expire"] = None
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
@@ -156,14 +158,15 @@ def callback_listener(call):
     if call.data == "cat_tunnel":
         user_states.pop(chat_id, None)
         markup = types.InlineKeyboardMarkup(row_width=1)
-        p1 = types.InlineKeyboardButton("🔹 ۵ گیگابایت (۳۰ روز) ⟵ ۵۰,۰۰۰ تومان", callback_data="plan_5gb_50000")
-        p2 = types.InlineKeyboardButton("🔹 ۱۰ گیگابایت (۳۰ روز) ⟵ ۹۹,۰۰۰ تومان", callback_data="plan_10gb_99000")
-        p3 = types.InlineKeyboardButton("🔹 ۲۰ گیگابایت (۳۰ روز) ⟵ ۱۷۹,۰۰۰ تومان", callback_data="plan_20gb_179000")
-        p4 = types.InlineKeyboardButton("🔹 ۵۰ گیگابایت (۳۰ روز) ⟵ ۳۸۹,۰۰۰ تومان", callback_data="plan_50gb_389000")
-        p5 = types.InlineKeyboardButton("🔹 ۱۰۰ گیگابایت (۳۰ روز) ⟵ ۶۹۹,۰۰۰ تومان", callback_data="plan_100gb_699000")
+        p1 = types.InlineKeyboardButton("🔹 ۵ گیگابایت (دائمی) ⟵ ۵۰,۰۰۰ تومان", callback_data="plan_5gb_50000")
+        p2 = types.InlineKeyboardButton("🔹 ۱۰ گیگابایت (دائمی) ⟵ ۹۹,۰۰۰ تومان", callback_data="plan_10gb_99000")
+        p3 = types.InlineKeyboardButton("🔹 ۲۰ گیگابایت (دائمی) ⟵ ۱۷۹,۰۰۰ تومان", callback_data="plan_20gb_179000")
+        p4 = types.InlineKeyboardButton("🔹 ۵۰ گیگابایت (دائمی) ⟵ ۳۸۹,۰۰۰ تومان", callback_data="plan_50gb_389000")
+        p5 = types.InlineKeyboardButton("🔹 ۱۰۰ گیگابایت (دائمی) ⟵ ۶۹۹,۰۰۰ تومان", callback_data="plan_100gb_699000")
+        p6 = types.InlineKeyboardButton("🔹 ۱۵۰ گیگابایت (دائمی) ⟵ ۸۰۰,۰۰۰ تومان", callback_data="plan_150gb_800000")
         back = types.InlineKeyboardButton("بازگشت به منوی اصلی 🔙", callback_data="main_menu")
-        markup.add(p1, p2, p3, p4, p5, back)
-        bot.edit_message_text("📦 لطفاً پلن مورد نظر خود را انتخاب نمایید:", chat_id, message_id, reply_markup=markup)
+        markup.add(p1, p2, p3, p4, p5, p6, back)
+        bot.edit_message_text("📦 لطفاً پلن دائمی مورد نظر خود را انتخاب نمایید:", chat_id, message_id, reply_markup=markup)
 
     elif call.data.startswith("plan_"):
         parts = call.data.split("_")
@@ -176,9 +179,9 @@ def callback_listener(call):
         markup.add(types.InlineKeyboardButton("لغو و بازگشت 🔙", callback_data="cat_tunnel"))
         
         msg = (
-            f"📌 **پلن انتخابی:** {plan_code.upper()}\n"
+            f"📌 **پلن انتخابی:** {plan_code.upper()} (دائمی)\n"
             f"💵 **مبلغ:** {price:,} تومان\n\n"
-            "✍️ لطفاً یک **نام انگلیسی دلخواه** بدون فاصله برای این اشتراک (مثلا نام خودت مثل `martin`) بفرست:"
+            "✍️ لطفاً یک **نام انگلیسی دلخواه** بدون فاصله برای این اشتراک (مثلا `martin`) بفرست:"
         )
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
@@ -192,7 +195,7 @@ def callback_listener(call):
             types.InlineKeyboardButton("➕ افزایش موجودی کیف پول", callback_data="charge_wallet"),
             types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
         )
-        msg = f"💳 **کیف پول کاربری شما:**\n\nموجودی فعلی: **{balance:,} تومان**"
+        msg = f"💳 **کیف پول کاربری شما (زاپاس):**\n\nموجودی فعلی: **{balance:,} تومان**"
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
     elif call.data == "charge_wallet":
@@ -246,7 +249,7 @@ def callback_listener(call):
         if rows:
             subs_text = "📦 **سرویس‌های فعال شما:**\n\n"
             for row in rows:
-                subs_text += f"🔹 پلن: {row[0]} ⟵ نام اشتراک: **{row[1]}**\n"
+                subs_text += f"🔹 پلن: {row[0]} (دائمی) ⟵ نام اشتراک: **{row[1]}**\n"
         else:
             subs_text = "🏷 در حال حاضر هیچ اشتراک فعالی ندارید."
             
@@ -258,7 +261,7 @@ def callback_listener(call):
         balance = cursor.fetchone()[0]
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
-        msg = f"👤 **اطلاعات حساب کاربری:**\n\nنام: {user_name}\nشناسه: `{user_id}`\nموجودی کیف پول: **{balance:,} تومان**"
+        msg = f"👤 **اطلاعات حساب کاربری:**\n\nنام: {user_name}\nشناسه: `{user_id}`\nموجودی کیف پول (زاپاس): **{balance:,} تومان**"
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
     elif call.data == "buy_num":
@@ -290,6 +293,31 @@ def callback_listener(call):
         )
         bot.edit_message_text(welcome_text, chat_id, message_id, reply_markup=main_inline_keyboard())
 
+    elif call.data.startswith("buyok_") or call.data.startswith("buyno_"):
+        if user_id != ADMIN_ID:
+            return
+        parts = call.data.split("_")
+        action = parts[0]
+        target_user_id = int(parts[1])
+        plan_name = parts[2]
+        sub_name = parts[3]
+        price = int(parts[4])
+
+        if action == "buyok":
+            gb_amount = int(plan_name.replace("gb", ""))
+            sub_url = create_marzban_user(sub_name, gb_amount)
+            if sub_url:
+                cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
+                               (target_user_id, "کاربر", plan_name, sub_name, price, "تایید شده"))
+                conn.commit()
+                bot.send_message(target_user_id, f"🎉 **پرداخت فیش شما تایید و کانفیگ دائمی شما ساخته شد!**\n\n🔗 **لینک اتصال:**\n`{sub_url}`", parse_mode="Markdown")
+                bot.edit_message_caption("✅ اشتراک تایید و صادر شد.", chat_id, message_id)
+            else:
+                bot.send_message(chat_id, "❌ خطا در ساخت کانفیگ در پنل مارزبان!")
+        else:
+            bot.send_message(target_user_id, "❌ فیش واریزی شما توسط ادمین رد شد.")
+            bot.edit_message_caption("❌ رد شد.", chat_id, message_id)
+
     elif call.data.startswith("chargeok_") or call.data.startswith("chargeno_"):
         if user_id != ADMIN_ID:
             return
@@ -301,7 +329,7 @@ def callback_listener(call):
         if action == "chargeok":
             cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_user_id))
             conn.commit()
-            bot.send_message(target_user_id, f"✅ مبلغ {amount:,} تومان به کیف پول شما واریز شد!")
+            bot.send_message(target_user_id, f"✅ مبلغ {amount:,} تومان به کیف پول زاپاس شما واریز شد!")
             bot.edit_message_caption("✅ شارژ کیف پول تایید شد.", chat_id, message_id)
         else:
             bot.send_message(target_user_id, "❌ درخواست شارژ کیف پول شما رد شد.")
@@ -313,8 +341,7 @@ def callback_listener(call):
 def handle_text_messages(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
-    user_name = message.from_user.first_name
-
+    
     if chat_id not in user_states:
         return
 
@@ -325,42 +352,16 @@ def handle_text_messages(message):
         plan_name = state_info["plan"]
         price = state_info["price"]
 
-        conn = sqlite3.connect("bot_database.db", check_same_thread=False)
-        cursor = conn.cursor()
+        user_states[chat_id] = {"step": "waiting_for_payment_receipt", "plan": plan_name, "sub": sub_name, "price": price}
         
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-        balance = cursor.fetchone()[0]
-
-        if balance < price:
-            bot.reply_to(message, f"❌ موجودی کیف پول شما کافی نیست!\nموجودی فعلی: {balance:,} تومان\nمبلغ پلن: {price:,} تومان\n\nلطفاً اول کیف پول خود را شارژ کنید.")
-            conn.close()
-            user_states.pop(chat_id, None)
-            return
-
-        cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (price, user_id))
-        
-        gb_amount = int(plan_name.replace("gb", ""))
-        sub_url = create_marzban_user(sub_name, gb_amount)
-
-        if sub_url:
-            cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
-                           (user_id, user_name, plan_name, sub_name, price, "تایید شده"))
-            conn.commit()
-            conn.close()
-
-            bot.send_message(
-                chat_id,
-                f"🎉 **پرداخت با موفقیت انجام و کانفیگ شما ساخته شد!**\n\n"
-                f"🔗 **لینک اتصال شما:**\n`{sub_url}`",
-                parse_mode="Markdown"
-            )
-        else:
-            cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (price, user_id))
-            conn.commit()
-            conn.close()
-            bot.send_message(chat_id, "❌ خطا در اتصال به سرور پنل برای ساخت کانفیگ. مبلغ به کیف پول شما بازگشت داده شد.")
-
-        user_states.pop(chat_id, None)
+        msg = (
+            f"🛒 **ثبت سفارش اشتراک دائمی {plan_name.upper()}**\n"
+            f"💵 مبلغ قابل پرداخت: **{price:,} تومان**\n\n"
+            f"لطفاً مبلغ را به کارت زیر واریز کنید:\n`{CARD_NUMBER}`\n"
+            f"به نام: **{CARD_NAME}**\n\n"
+            "📸 **سپس عکس فیش واریزی را همین‌جا ارسال کنید تا برای تایید به ادمین فرستاده شود.**"
+        )
+        bot.reply_to(message, msg, parse_mode="Markdown")
 
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
@@ -368,24 +369,53 @@ def handle_receipt(message):
     if user.id == ADMIN_ID:
         return
 
-    bot.reply_to(message, "✅ فیش شما دریافت شد. پس از تایید ادمین، کیف پول شما شارژ خواهد شد.")
+    chat_id = message.chat.id
     
-    username = f"@{user.username}" if user.username else "ندارد"
-    caption = (
-        f"📩 **درخواست شارژ کیف پول جدید:**\n\n"
-        f"👤 نام: {user.first_name}\n"
-        f"🆔 آیدی: {username}\n"
-        f"🔢 آیدی عددی: `{user.id}`"
-    )
+    # بررسی حالت خرید پلن یا شارژ کیف پول
+    if chat_id in user_states and user_states[chat_id].get("step") == "waiting_for_payment_receipt":
+        state_info = user_states[chat_id]
+        plan_name = state_info["plan"]
+        sub_name = state_info["sub"]
+        price = state_info["price"]
 
-    admin_markup = types.InlineKeyboardMarkup(row_width=2)
-    admin_markup.add(
-        types.InlineKeyboardButton("✅ تایید (شارژ ۵۰ تومانی)", callback_data=f"chargeok_{user.id}_50000"),
-        types.InlineKeyboardButton("✅ تایید (شارژ ۱۰۰ تومانی)", callback_data=f"chargeok_{user.id}_100000"),
-        types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
-    )
+        bot.reply_to(message, "✅ فیش خرید اشتراک شما دریافت شد. پس از تایید ادمین، لینک کانفیگ ارسال خواهد شد.")
+        
+        caption = (
+            f"📩 **درخواست خرید اشتراک جدید:**\n\n"
+            f"👤 نام: {user.first_name}\n"
+            f"🆔 آیدی عددی: `{user.id}`\n"
+            f"📦 پلن: {plan_name.upper()} (دائمی)\n"
+            f"✍️ نام ساب: `{sub_name}`\n"
+            f"💵 مبلغ: {price:,} تومان"
+        )
 
-    bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
+        admin_markup = types.InlineKeyboardMarkup(row_width=2)
+        admin_markup.add(
+            types.InlineKeyboardButton("✅ تایید و ساخت کانفیگ", callback_data=f"buyok_{user.id}_{plan_name}_{sub_name}_{price}"),
+            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"buyno_{user.id}_0_0_0")
+        )
+
+        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
+        user_states.pop(chat_id, None)
+
+    else:
+        # حالت شارژ کیف پول (زاپاس)
+        bot.reply_to(message, "✅ فیش شارژ کیف پول دریافت شد. پس از تایید ادمین، کیف پول شما شارژ خواهد شد.")
+        
+        caption = (
+            f"📩 **درخواست شارژ کیف پول (زاپاس):**\n\n"
+            f"👤 نام: {user.first_name}\n"
+            f"🆔 آیدی عددی: `{user.id}`"
+        )
+
+        admin_markup = types.InlineKeyboardMarkup(row_width=2)
+        admin_markup.add(
+            types.InlineKeyboardButton("✅ شارژ ۵۰ تومانی", callback_data=f"chargeok_{user.id}_50000"),
+            types.InlineKeyboardButton("✅ شارژ ۱۰۰ تومانی", callback_data=f"chargeok_{user.id}_100000"),
+            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
+        )
+
+        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
 
 bot.infinity_polling(skip_pending=True)
         
