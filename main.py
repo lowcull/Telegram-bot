@@ -457,7 +457,6 @@ def handle_receipt(message):
 
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
         user_states.pop(chat_id, None)
-
     else:
         bot.reply_to(message, "✅ فیش شارژ کیف پول دریافت شد. پس از تایید ادمین، کیف پول شما شارژ خواهد شد.")
         
@@ -467,11 +466,13 @@ def handle_receipt(message):
             f"🆔 آیدی عددی: `{user.id}`"
         )
 
-                admin_markup = types.InlineKeyboardMarkup(row_width=2)
+        admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ شارژ ۵۰ تومانی", callback_data=f"chargeok_{user.id}_50000"),
             types.InlineKeyboardButton("✅ شارژ ۱۰۰ تومانی", callback_data=f"chargeok_{user.id}_100000"),
             types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
         )
+
+        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
+        user_states.pop(chat_id, None)
         
-    
