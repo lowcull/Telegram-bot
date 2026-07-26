@@ -2,6 +2,10 @@ import sqlite3
 import requests
 import telebot
 from telebot import types
+import urllib3
+
+# غیرفعال کردنشدن هشدارهای SSL در صورت خودامضا بودن گواهی پنل
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 TOKEN = "8369466564:AAE5Bf6LjUPAGTzSwnry2donqyrvlO7Dxoo"
 bot = telebot.TeleBot(TOKEN)
@@ -48,7 +52,8 @@ def get_marzban_token():
     try:
         url = f"{PANEL_URL}/api/admin/token"
         data = {"username": PANEL_ADMIN_USERNAME, "password": PANEL_ADMIN_PASSWORD}
-        response = requests.post(url, data=data, timeout=10, verify=False)
+        # تایم‌اوت را روی ۵ ثانیه گذاشتیم تا ربات معطل نشود
+        response = requests.post(url, data=data, timeout=5, verify=False)
         if response.status_code == 200:
             return response.json().get("access_token")
     except Exception as e:
@@ -85,11 +90,12 @@ def create_marzban_user(username, data_limit_gb, expire_days=None):
         payload["expire"] = 3650
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10, verify=False)
+        response = requests.post(url, json=payload, headers=headers, timeout=5, verify=False)
         if response.status_code == 200:
             user_data = response.json()
             return user_data.get("subscription_url")
         else:
+            print(f"Panel Error Response: {response.status_code} - {response.text}")
             return None
     except Exception as e:
         print("Panel Connection Exception Error:", e)
@@ -219,10 +225,9 @@ def callback_listener(call):
             )
             bot.edit_message_text(success_msg, chat_id, message_id, parse_mode="Markdown")
         else:
-            # برگشت دادن پول در صورت خطا در پنل
             cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (price, user_id))
             conn.commit()
-            bot.answer_callback_query(call.id, "❌ خطا در ارتباط با سرور پنل برای ساخت کانفیگ!", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ خطا در ارتباط با سرور پنل! (احتمال قطعی اینترنت یا اشتباه بودن اطلاعات پنل)", show_alert=True)
 
         user_states.pop(chat_id, None)
 
@@ -276,7 +281,7 @@ def callback_listener(call):
                     "🎁 **اشتراک تست ۱۰۰ مگابایت ۲۴ ساعته با موفقیت فعال شد!**\n\n"
                     f"🔗 **لینک اتصال شما:**\n`{sub_url}`"
                 )
-                bot.edit_message_text(success_msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
+                bot.edit_message_text(success_msg, chat_id, message_id, reply_markup=markup)
             else:
                 bot.edit_message_text("❌ خطا در ارتباط با سرور پنل برای ساخت کانفیگ تست. لطفاً بعداً تلاش کنید.", chat_id, message_id, reply_markup=markup)
 
@@ -457,8 +462,4 @@ def handle_receipt(message):
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ شارژ ۵۰ تومانی", callback_data=f"chargeok_{user.id}_50000"),
-            types.InlineKeyboardButton("✅ شارژ ۱۰۰ تومانی", callback_data=f"chargeok_{user.id}_100000"),
-            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
-        )
-
-        bot.send_photo(ADMIN_ID, message.photo
+      
