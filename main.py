@@ -3,8 +3,11 @@ import requests
 import telebot
 from telebot import types
 import urllib3
+from flask import Flask
+import threading
+import os
+import time
 
-# غیرفعال کردنشدن هشدارهای SSL در صورت خودامضا بودن گواهی پنل
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 TOKEN = "8369466564:AAE5Bf6LjUPAGTzSwnry2donqyrvlO7Dxoo"
@@ -15,12 +18,21 @@ CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
 MY_TELEGRAM_ID = "LowCull"
 
-# --- اطلاعات پنل مارزبان شما ---
 PANEL_URL = "https://vip-03.fl-sub.site:2096"
 PANEL_ADMIN_USERNAME = "Aras250g2"
 PANEL_ADMIN_PASSWORD = "HufGelpbrvnmR"
 
 user_states = {}
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
 def init_db():
     conn = sqlite3.connect("bot_database.db", check_same_thread=False)
@@ -52,12 +64,11 @@ def get_marzban_token():
     try:
         url = f"{PANEL_URL}/api/admin/token"
         data = {"username": PANEL_ADMIN_USERNAME, "password": PANEL_ADMIN_PASSWORD}
-        # تایم‌اوت را روی ۵ ثانیه گذاشتیم تا ربات معطل نشود
         response = requests.post(url, data=data, timeout=5, verify=False)
         if response.status_code == 200:
             return response.json().get("access_token")
     except Exception as e:
-        print("Panel Token Exception Error:", e)
+        print("Panel Token Error:", e)
     return None
 
 def create_marzban_user(username, data_limit_gb, expire_days=None):
@@ -94,12 +105,9 @@ def create_marzban_user(username, data_limit_gb, expire_days=None):
         if response.status_code == 200:
             user_data = response.json()
             return user_data.get("subscription_url")
-        else:
-            print(f"Panel Error Response: {response.status_code} - {response.text}")
-            return None
     except Exception as e:
-        print("Panel Connection Exception Error:", e)
-        return None
+        print("Panel Create User Error:", e)
+    return None
 
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -186,18 +194,18 @@ def callback_listener(call):
 
     elif call.data == "wallet_pay_direct":
         if chat_id not in user_states:
-            bot.answer_callback_query(call.id, "❌ اطلاعات سفارش منقضی یا پاک شده است. لطفاً دوباره تلاش کنید.", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ اطلاعات سفارش منقضی شده است.", show_alert=True)
             return
             
         state_info = user_states[chat_id]
-        if "plan" not in state_info or "sub" not in state_info or "price" not in state_info:
-            bot.answer_callback_query(call.id, "❌ خطای داده‌های سفارش. لطفاً مراحل را از ابتدا طی کنید.", show_alert=True)
+        plan_name = state_info.get("plan")
+        sub_name = state_info.get("sub")
+        price = state_info.get("price")
+
+        if not plan_name or not sub_name or not price:
+            bot.answer_callback_query(call.id, "❌ خطای اطلاعات سفارش. دوباره تلاش کنید.", show_alert=True)
             user_states.pop(chat_id, None)
             return
-
-        plan_name = state_info["plan"]
-        sub_name = state_info["sub"]
-        price = state_info["price"]
 
         cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
         balance_row = cursor.fetchone()
@@ -227,7 +235,7 @@ def callback_listener(call):
         else:
             cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (price, user_id))
             conn.commit()
-            bot.answer_callback_query(call.id, "❌ خطا در ارتباط با سرور پنل! (احتمال قطعی اینترنت یا اشتباه بودن اطلاعات پنل)", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ خطا در اتصال به پنل مارزبان! (موجودی به کیف پول برگشت خورد)", show_alert=True)
 
         user_states.pop(chat_id, None)
 
@@ -283,7 +291,7 @@ def callback_listener(call):
                 )
                 bot.edit_message_text(success_msg, chat_id, message_id, reply_markup=markup)
             else:
-                bot.edit_message_text("❌ خطا در ارتباط با سرور پنل برای ساخت کانفیگ تست. لطفاً بعداً تلاش کنید.", chat_id, message_id, reply_markup=markup)
+                bot.edit_message_text("❌ خطا در اتصال به پنل برای ساخت تست. لطفاً بعداً تلاش کنید.", chat_id, message_id, reply_markup=markup)
 
     elif call.data == "my_subs":
         user_states.pop(chat_id, None)
@@ -300,7 +308,7 @@ def callback_listener(call):
         else:
             subs_text = "🏷 در حال حاضر هیچ اشتراک فعالی ندارید."
             
-        bot.edit_message_text(subs_text, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
+        bot.edit_message_text(subs_text, chat_id, message_id, reply_markup=markup)
 
     elif call.data == "user_account":
         user_states.pop(chat_id, None)
@@ -462,4 +470,5 @@ def handle_receipt(message):
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ شارژ ۵۰ تومانی", callback_data=f"chargeok_{user.id}_50000"),
-      
+            types.InlineKeyboardButton("✅ شارژ ۱۰۰ تومانی", callback_data=f"chargeok_{user.id}_100000"),
+            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{
