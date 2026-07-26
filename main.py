@@ -1,12 +1,9 @@
 import sqlite3
-import requests
 import telebot
 from telebot import types
 import urllib3
 from flask import Flask
-import threading
 import os
-import time
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -17,10 +14,6 @@ ADMIN_ID = 6827582403
 CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
 MY_TELEGRAM_ID = "LowCull"
-
-PANEL_URL = "https://vip-03.fl-sub.site:2096"
-PANEL_ADMIN_USERNAME = "Aras250g2"
-PANEL_ADMIN_PASSWORD = "HufGelpbrvnmR"
 
 user_states = {}
 
@@ -59,55 +52,6 @@ def init_db():
     conn.close()
 
 init_db()
-
-def get_marzban_token():
-    try:
-        url = f"{PANEL_URL}/api/admin/token"
-        data = {"username": PANEL_ADMIN_USERNAME, "password": PANEL_ADMIN_PASSWORD}
-        response = requests.post(url, data=data, timeout=5, verify=False)
-        if response.status_code == 200:
-            return response.json().get("access_token")
-    except Exception as e:
-        print("Panel Token Error:", e)
-    return None
-
-def create_marzban_user(username, data_limit_gb, expire_days=None):
-    token = get_marzban_token()
-    if not token:
-        return None
-
-    url = f"{PANEL_URL}/api/user"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    if data_limit_gb < 1:
-        data_limit_bytes = int(100 * 1024 * 1024)
-    else:
-        data_limit_bytes = int(data_limit_gb) * 1024 * 1024 * 1024
-
-    payload = {
-        "username": username,
-        "data_limit": data_limit_bytes,
-        "expire_comb": "days",
-        "proxies": {"vless": {}},
-        "inbounds": {"vless": ["VLESS"]}
-    }
-    
-    if expire_days:
-        payload["expire"] = expire_days
-    else:
-        payload["expire"] = 3650
-
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=5, verify=False)
-        if response.status_code == 200:
-            user_data = response.json()
-            return user_data.get("subscription_url")
-    except Exception as e:
-        print("Panel Create User Error:", e)
-    return None
 
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -192,53 +136,6 @@ def callback_listener(call):
         )
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
-    elif call.data == "wallet_pay_direct":
-        if chat_id not in user_states:
-            bot.answer_callback_query(call.id, "❌ اطلاعات سفارش منقضی شده است.", show_alert=True)
-            return
-            
-        state_info = user_states[chat_id]
-        plan_name = state_info.get("plan")
-        sub_name = state_info.get("sub")
-        price = state_info.get("price")
-
-        if not plan_name or not sub_name or not price:
-            bot.answer_callback_query(call.id, "❌ خطای اطلاعات سفارش. دوباره تلاش کنید.", show_alert=True)
-            user_states.pop(chat_id, None)
-            return
-
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-        balance_row = cursor.fetchone()
-        balance = balance_row[0] if balance_row else 0
-
-        if balance < price:
-            bot.answer_callback_query(call.id, f"❌ موجودی کیف پول کافی نیست! (موجودی: {balance:,} تومان)", show_alert=True)
-            return
-
-        cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (price, user_id))
-        conn.commit()
-
-        gb_amount = int(plan_name.replace("gb", ""))
-        sub_url = create_marzban_user(sub_name, gb_amount)
-
-        if sub_url:
-            cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
-                           (user_id, user_name, plan_name, sub_name, price, "تایید شده"))
-            conn.commit()
-            
-            success_msg = (
-                f"🎉 **پرداخت با کیف پول موفقیت‌آمیز بود و کانفیگ شما ساخته شد!**\n\n"
-                f"📦 پلن: {plan_name.upper()} (دائمی)\n"
-                f"🔗 **لینک اتصال شما:**\n`{sub_url}`"
-            )
-            bot.edit_message_text(success_msg, chat_id, message_id, parse_mode="Markdown")
-        else:
-            cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (price, user_id))
-            conn.commit()
-            bot.answer_callback_query(call.id, "❌ خطا در اتصال به پنل مارزبان! (موجودی به کیف پول برگشت خورد)", show_alert=True)
-
-        user_states.pop(chat_id, None)
-
     elif call.data == "wallet_menu":
         user_states.pop(chat_id, None)
         cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -277,36 +174,27 @@ def callback_listener(call):
         if already_got:
             bot.edit_message_text("❌ شما قبلاً از اشتراک تست رایگان استفاده کرده‌اید.", chat_id, message_id, reply_markup=markup)
         else:
-            test_username = f"test_{user_id}"
-            sub_url = create_marzban_user(test_username, 0.1, expire_days=1)
-            
-            if sub_url:
-                cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
-                               (user_id, user_name, "تست رایگان", test_username, 0, "تایید شده"))
-                conn.commit()
-                
-                success_msg = (
-                    "🎁 **اشتراک تست ۱۰۰ مگابایت ۲۴ ساعته با موفقیت فعال شد!**\n\n"
-                    f"🔗 **لینک اتصال شما:**\n`{sub_url}`"
-                )
-                bot.edit_message_text(success_msg, chat_id, message_id, reply_markup=markup)
-            else:
-                bot.edit_message_text("❌ خطا در اتصال به پنل برای ساخت تست. لطفاً بعداً تلاش کنید.", chat_id, message_id, reply_markup=markup)
+            user_states[chat_id] = {"step": "waiting_for_test_receipt", "plan": "تست رایگان", "price": 0, "sub": f"test_{user_id}"}
+            msg = (
+                "🎁 **درخواست تست رایگان (۱۰۰ مگابایت ۲۴ ساعته)**\n\n"
+                "برای دریافت تست رایگان، لطفاً نام دلخواه یا اسکرین‌شات درخواست خود را ارسال کنید تا ادمین کانفیگ را برای شما ارسال کند."
+            )
+            bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
     elif call.data == "my_subs":
         user_states.pop(chat_id, None)
-        cursor.execute("SELECT plan_name, sub_name FROM invoices WHERE user_id = ? AND status = 'تایید شده' AND plan_name != 'تست رایگان'", (user_id,))
+        cursor.execute("SELECT plan_name, sub_name FROM invoices WHERE user_id = ? AND status = 'تایید شده'", (user_id,))
         rows = cursor.fetchall()
 
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
 
         if rows:
-            subs_text = "📦 **سرویس‌های فعال شما:**\n\n"
+            subs_text = "📦 **سرویس‌های شما:**\n\n"
             for row in rows:
-                subs_text += f"🔹 پلن: {row[0]} (دائمی) ⟵ نام اشتراک: **{row[1]}**\n"
+                subs_text += f"🔹 پلن: {row[0]} ⟵ نام: **{row[1]}**\n"
         else:
-            subs_text = "🏷 در حال حاضر هیچ اشتراک فعالی ندارید."
+            subs_text = "🏷 در حال حاضر هیچ اشتراکی ثبت نشده است."
             
         bot.edit_message_text(subs_text, chat_id, message_id, reply_markup=markup)
 
@@ -360,18 +248,11 @@ def callback_listener(call):
         price = int(parts[4])
 
         if action == "buyok":
-            gb_amount = int(plan_name.replace("gb", ""))
-            sub_url = create_marzban_user(sub_name, gb_amount)
-            if sub_url:
-                cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
-                               (target_user_id, "کاربر", plan_name, sub_name, price, "تایید شده"))
-                conn.commit()
-                bot.send_message(target_user_id, f"🎉 **پرداخت فیش شما تایید و کانفیگ دائمی شما ساخته شد!**\n\n🔗 **لینک اتصال:**\n`{sub_url}`", parse_mode="Markdown")
-                bot.edit_message_caption("✅ اشتراک تایید و صادر شد.", chat_id, message_id)
-            else:
-                bot.send_message(chat_id, "❌ خطا در ساخت کانفیگ در پنل مارزبان!")
+            user_states[ADMIN_ID] = {"step": "waiting_for_link_to_send", "target_user": target_user_id, "plan": plan_name, "sub": sub_name, "price": price}
+            bot.send_message(ADMIN_ID, f"✍️ لطفاً **لینک اشتراک** مربوط به کاربر `{target_user_id}` را همین‌جا بفرستید تا برایش ارسال شود:")
+            bot.edit_message_caption("⏳ در انتظار ارسال لینک از طرف شما...", chat_id, message_id)
         else:
-            bot.send_message(target_user_id, "❌ فیش واریزی شما توسط ادمین رد شد.")
+            bot.send_message(target_user_id, "❌ فیش واریزی یا درخواست شما توسط ادمین رد شد.")
             bot.edit_message_caption("❌ رد شد.", chat_id, message_id)
 
     elif call.data.startswith("chargeok_") or call.data.startswith("chargeno_"):
@@ -397,6 +278,26 @@ def callback_listener(call):
 def handle_text_messages(message):
     chat_id = message.chat.id
     
+    if chat_id == ADMIN_ID and chat_id in user_states and user_states[chat_id].get("step") == "waiting_for_link_to_send":
+        sub_url = message.text.strip()
+        info = user_states[chat_id]
+        target_user_id = info["target_user"]
+        plan_name = info["plan"]
+        sub_name = info["sub"]
+        price = info["price"]
+
+        conn = sqlite3.connect("bot_database.db", check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO invoices (user_id, user_name, plan_name, sub_name, price, status) VALUES (?, ?, ?, ?, ?, ?)", 
+                       (target_user_id, "کاربر", plan_name, sub_name, price, "تایید شده"))
+        conn.commit()
+        conn.close()
+
+        bot.send_message(target_user_id, f"🎉 **پرداخت و سفارش شما تایید شد!**\n\n📦 پلن: {plan_name.upper()}\n🔗 **لینک اتصال شما:**\n`{sub_url}`", parse_mode="Markdown")
+        bot.reply_to(message, "✅ لینک با موفقیت برای کاربر ارسال شد و فاکتور ثبت گردید.")
+        user_states.pop(chat_id, None)
+        return
+
     if chat_id not in user_states:
         return
 
@@ -407,58 +308,54 @@ def handle_text_messages(message):
         plan_name = state_info["plan"]
         price = state_info["price"]
 
-        user_states[chat_id] = {"step": "waiting_for_payment_choice", "plan": plan_name, "sub": sub_name, "price": price}
+        user_states[chat_id] = {"step": "waiting_for_payment_receipt", "plan": plan_name, "sub": sub_name, "price": price}
         
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            types.InlineKeyboardButton("💳 پرداخت با کیف پول (آنی)", callback_data="wallet_pay_direct"),
-            types.InlineKeyboardButton("لغو و بازگشت 🔙", callback_data="cat_tunnel")
-        )
-
         msg = (
-            f"🛒 **ثبت سفارش اشتراک دائمی {plan_name.upper()}**\n"
+            f"🛒 **ثبت سفارش اشتراک {plan_name.upper()}**\n"
             f"💵 مبلغ قابل پرداخت: **{price:,} تومان**\n\n"
             f"لطفاً مبلغ را به کارت زیر واریز کنید:\n`{CARD_NUMBER}`\n"
             f"به نام: **{CARD_NAME}**\n\n"
-            "📸 **یا اگر می‌خواهید با کیف پول پرداخت کنید روی دکمه زیر بزنید، یا عکس فیش واریزی را همین‌جا ارسال کنید.**"
+            "📸 **اکنون عکس فیش واریزی خود را همین‌جا ارسال کنید.**"
         )
-        bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
+        bot.send_message(chat_id, msg, parse_mode="Markdown")
 
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
     user = message.from_user
     if user.id == ADMIN_ID:
+        if ADMIN_ID in user_states and user_states[ADMIN_ID].get("step") == "waiting_for_link_to_send":
+            bot.reply_to(message, "لطفاً لینک اتصال (متن) را ارسال کنید نه عکس!")
         return
 
     chat_id = message.chat.id
     
-    if chat_id in user_states and user_states[chat_id].get("step") in ["waiting_for_payment_choice", "waiting_for_payment_receipt"]:
+    if chat_id in user_states and user_states[chat_id].get("step") in ["waiting_for_payment_receipt", "waiting_for_test_receipt"]:
         state_info = user_states[chat_id]
         plan_name = state_info["plan"]
         sub_name = state_info["sub"]
         price = state_info["price"]
 
-        bot.reply_to(message, "✅ فیش خرید اشتراک شما دریافت شد. پس از تایید ادمین، لینک کانفیگ ارسال خواهد شد.")
+        bot.reply_to(message, "✅ تصویر فیش شما دریافت شد. پس از بررسی ادمین، لینک اتصال برای شما ارسال خواهد شد.")
         
         caption = (
-            f"📩 **درخواست خرید اشتراک جدید (کارت به کارت):**\n\n"
+            f"📩 **درخواست جدید (تایید دستی):**\n\n"
             f"👤 نام: {user.first_name}\n"
             f"🆔 آیدی عددی: `{user.id}`\n"
-            f"📦 پلن: {plan_name.upper()} (دائمی)\n"
-            f"✍️ نام ساب: `{sub_name}`\n"
+            f"📦 پلن: {plan_name.upper()}\n"
+            f"✍️ نام اشتراک: `{sub_name}`\n"
             f"💵 مبلغ: {price:,} تومان"
         )
 
         admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
-            types.InlineKeyboardButton("✅ تایید و ساخت کانفیگ", callback_data=f"buyok_{user.id}_{plan_name}_{sub_name}_{price}"),
+            types.InlineKeyboardButton("✅ تایید و ارسال لینک", callback_data=f"buyok_{user.id}_{plan_name}_{sub_name}_{price}"),
             types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"buyno_{user.id}_0_0_0")
         )
 
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
         user_states.pop(chat_id, None)
     else:
-        bot.reply_to(message, "✅ فیش شارژ کیف پول دریافت شد. پس از تایید ادمین، کیف پول شما شارژ خواهد شد.")
+        bot.reply_to(message, "✅ تصویر فیش شارژ کیف پول دریافت شد. پس از تایید ادمین، موجودی شما شارژ خواهد شد.")
         
         caption = (
             f"📩 **درخواست شارژ کیف پول:**\n\n"
@@ -474,24 +371,10 @@ def handle_receipt(message):
         )
 
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
-        user_states.pop(chat_id, None)
-        import os
-from flask import Flask
-
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "I am alive!"
-
-def run():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
 
 if __name__ == "__main__":
     import threading
-    t = threading.Thread(target=run)
-    t.start()   
+    t = threading.Thread(target=run_flask)
+    t.start()
     bot.infinity_polling()
-
     
