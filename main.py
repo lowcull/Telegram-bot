@@ -491,5 +491,7 @@ def run():
 if __name__ == "__main__":
     import threading
     t = threading.Thread(target=run)
-    t.start()
+    t.start()   
+    bot.infinity_polling()
+
     
