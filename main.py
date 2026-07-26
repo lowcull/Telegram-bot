@@ -7,24 +7,17 @@ bot = telebot.TeleBot(TOKEN)
 ADMIN_ID = 6827582403
 CARD_NUMBER = "5054161019772965"
 CARD_NAME = "امیرخانی"
-MY_TELEGRAM_ID = "LowCull"  # آیدی تلگرام بدون @
+MY_TELEGRAM_ID = "LowCull"
 
-# --- منوی اصلی شیشه‌ای (دقیقاً همون منویی که خواستی) ---
 def main_inline_keyboard():
     markup = types.InlineKeyboardMarkup(row_width=2)
-    
     b1 = types.InlineKeyboardButton("🛒 خرید اشتراک جدید", callback_data="cat_tunnel")
     b2 = types.InlineKeyboardButton("🆓 دریافت اشتراک تست", callback_data="free_test")
-    
     b3 = types.InlineKeyboardButton("🏷 اشتراک‌های من", callback_data="my_subs")
     b4 = types.InlineKeyboardButton("📄 فاکتورهای من", callback_data="my_invoices")
-    
     b5 = types.InlineKeyboardButton("👤 حساب کاربری", callback_data="user_account")
-    
-    # دکمه‌های پشتیبانی و آموزش اتصال لینک شده به آیدی شما
     b6 = types.InlineKeyboardButton("📞 پشتیبانی", url=f"https://t.me/{MY_TELEGRAM_ID}")
     b7 = types.InlineKeyboardButton("📱 آموزش اتصال", url=f"https://t.me/{MY_TELEGRAM_ID}")
-    
     b8 = types.InlineKeyboardButton("↗ سرویس گیمینگ", callback_data="gaming_service")
     b9 = types.InlineKeyboardButton("🤖 ساخت ربات تلگرام", callback_data="buy_bot")
     b10 = types.InlineKeyboardButton("📱 شماره مجازی", callback_data="buy_num")
@@ -38,49 +31,38 @@ def main_inline_keyboard():
     markup.add(b9, b10)
     return markup
 
-# --- دستور /start ---
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.send_message(
         message.chat.id,
-        "لطفاً یکی از گزینه‌های زیر رو انتخاب کنید:",
+        "سلام Martin عزیز! 🌟\nبه فروشگاه خوش آمدید. لطفاً گزینه مورد نظر خود را انتخاب کنید:",
         reply_markup=main_inline_keyboard()
     )
 
-# --- مدیریت کلیک روی دکمه‌ها ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_listener(call):
     chat_id = call.message.chat.id
     message_id = call.message.message_id
-
-    # رفع حالت انتظار روی دکمه‌ها
     bot.answer_callback_query(call.id)
 
-    # ۱. بخش خرید اشتراک جدید (لیست پلن‌ها با ظاهر متنی که خواستی)
     if call.data == "cat_tunnel":
         markup = types.InlineKeyboardMarkup(row_width=1)
-        p1 = types.InlineKeyboardButton("5 گیگ | 50 تومان (بدون زمان)", callback_data="plan_5gb")
-        p2 = types.InlineKeyboardButton("10 گیگ | 99 تومان (بدون زمان)", callback_data="plan_10gb")
-        p3 = types.InlineKeyboardButton("20 گیگ | 179 تومان (بدون زمان)", callback_data="plan_20gb")
-        p4 = types.InlineKeyboardButton("30 گیگ | 265 تومان (بدون زمان)", callback_data="plan_30gb")
-        p5 = types.InlineKeyboardButton("50 گیگ | 389 تومان (بدون زمان)", callback_data="plan_50gb")
-        p6 = types.InlineKeyboardButton("100 گیگ | 699 تومان (بدون زمان)", callback_data="plan_100gb")
-        p7 = types.InlineKeyboardButton("150 گیگ(با هديه🎁) | 889 تومان (بدون زمان)", callback_data="plan_150gb")
-        back = types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu")
+        p1 = types.InlineKeyboardButton("💎 ۵ گیگابایت ⟵ ۵۰,۰۰۰ تومان (دائمی)", callback_data="plan_5gb")
+        p2 = types.InlineKeyboardButton("💎 ۱۰ گیگابایت ⟵ ۹۹,۰۰۰ تومان (دائمی)", callback_data="plan_10gb")
+        p3 = types.InlineKeyboardButton("💎 ۲۰ گیگابایت ⟵ ۱۷۹,۰۰۰ تومان (دائمی)", callback_data="plan_20gb")
+        p4 = types.InlineKeyboardButton("💎 ۳۰ گیگابایت ⟵ ۲۶۵,۰۰۰ تومان (دائمی)", callback_data="plan_30gb")
+        p5 = types.InlineKeyboardButton("💎 ۵۰ گیگابایت ⟵ ۳۸۹,۰۰۰ تومان (دائمی)", callback_data="plan_50gb")
+        p6 = types.InlineKeyboardButton("💎 ۱۰۰ گیگابایت ⟵ ۶۹۹,۰۰۰ تومان (دائمی)", callback_data="plan_100gb")
+        p7 = types.InlineKeyboardButton("🌟 ۱۵۰ گیگابایت + هدیه ویژه ⟵ ۸۸۹,۰۰۰ تومان (دائمی)", callback_data="plan_150gb")
+        back = types.InlineKeyboardButton("بازگشت به منوی اصلی 🔙", callback_data="main_menu")
         markup.add(p1, p2, p3, p4, p5, p6, p7, back)
-        
-        bot.edit_message_text(
-            "لطفاً پلن اشتراک خود را انتخاب کنید: 📦",
-            chat_id, message_id, reply_markup=markup
-        )
+        bot.edit_message_text("⚡️ لیست پلن‌های اختصاصی تانل (بدون محدودیت زمانی):\nلطفاً حجم مورد نظر خود را انتخاب کنید:", chat_id, message_id, reply_markup=markup)
 
-    # ۲. صفحه واریز کارت به کارت پس از انتخاب پلن
     elif call.data.startswith("plan_"):
         plan_name = call.data.replace("plan_", "").upper()
         markup = types.InlineKeyboardMarkup(row_width=1)
         back = types.InlineKeyboardButton("بازگشت 🔙", callback_data="cat_tunnel")
         markup.add(back)
-        
         msg = (
             f"📌 **انتخاب شما: پلن {plan_name}**\n\n"
             "💳 **اطلاعات کارت جهت واریز وجه:**\n\n"
@@ -91,7 +73,6 @@ def callback_listener(call):
         )
         bot.edit_message_text(msg, chat_id, message_id, parse_mode="Markdown", reply_markup=markup)
 
-    # ۳. سایر بخش‌های منو
     elif call.data == "free_test":
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
@@ -138,22 +119,18 @@ def callback_listener(call):
         )
         bot.edit_message_text("🤖 برای سفارش ساخت ربات تلگرام، به پیوی مراجعه کنید:", chat_id, message_id, reply_markup=markup)
 
-    # ۴. بازگشت به منوی اصلی
     elif call.data == "main_menu":
         bot.edit_message_text(
-            "لطفاً یکی از گزینه‌های زیر رو انتخاب کنید:",
+            "سلام Martin عزیز! 🌟\nبه فروشگاه خوش آمدید. لطفاً گزینه مورد نظر خود را انتخاب کنید:",
             chat_id, message_id,
             reply_markup=main_inline_keyboard()
         )
 
-# --- دریافت فیش واریزی و ارسال برای ادمین ---
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
     bot.reply_to(message, "✅ فیش واریزی شما دریافت شد و برای بررسی به مدیریت ارسال گردید. با شما تماس خواهیم گرفت.")
-    
     user = message.from_user
     username = f"@{user.username}" if user.username else "ندارد"
-    
     caption = (
         f"📩 **فیش واریزی جدید دریافت شد!**\n\n"
         f"👤 **نام کاربر:** {user.first_name}\n"
@@ -162,5 +139,5 @@ def handle_receipt(message):
     )
     bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown")
 
-print("ربات با منوی جدید روشن شد...")
+print("ربات روی آیدی LowCull_shop_bot روشن شد...")
 bot.infinity_polling()
