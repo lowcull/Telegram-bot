@@ -475,4 +475,21 @@ def handle_receipt(message):
 
         bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
         user_states.pop(chat_id, None)
-        
+        import os
+from flask import Flask
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I am alive!"
+
+def run():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+if __name__ == "__main__":
+    import threading
+    t = threading.Thread(target=run)
+    t.start()
+    
