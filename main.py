@@ -467,8 +467,11 @@ def handle_receipt(message):
             f"🆔 آیدی عددی: `{user.id}`"
         )
 
-        admin_markup = types.InlineKeyboardMarkup(row_width=2)
+                admin_markup = types.InlineKeyboardMarkup(row_width=2)
         admin_markup.add(
             types.InlineKeyboardButton("✅ شارژ ۵۰ تومانی", callback_data=f"chargeok_{user.id}_50000"),
             types.InlineKeyboardButton("✅ شارژ ۱۰۰ تومانی", callback_data=f"chargeok_{user.id}_100000"),
-            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{
+            types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
+        )
+        
+    
