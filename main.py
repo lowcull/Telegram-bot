@@ -180,22 +180,30 @@ def callback_listener(call):
 
     elif call.data == "wallet_pay_direct":
         if chat_id not in user_states:
-            bot.answer_callback_query(call.id, "❌ اطلاعات سفارش منقضی شد.", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ اطلاعات سفارش منقضی یا پاک شده است. لطفاً دوباره تلاش کنید.", show_alert=True)
             return
             
         state_info = user_states[chat_id]
+        if "plan" not in state_info or "sub" not in state_info or "price" not in state_info:
+            bot.answer_callback_query(call.id, "❌ خطای داده‌های سفارش. لطفاً مراحل را از ابتدا طی کنید.", show_alert=True)
+            user_states.pop(chat_id, None)
+            return
+
         plan_name = state_info["plan"]
         sub_name = state_info["sub"]
         price = state_info["price"]
 
         cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-        balance = cursor.fetchone()[0]
+        balance_row = cursor.fetchone()
+        balance = balance_row[0] if balance_row else 0
 
         if balance < price:
             bot.answer_callback_query(call.id, f"❌ موجودی کیف پول کافی نیست! (موجودی: {balance:,} تومان)", show_alert=True)
             return
 
         cursor.execute("UPDATE users SET balance = balance - ? WHERE user_id = ?", (price, user_id))
+        conn.commit()
+
         gb_amount = int(plan_name.replace("gb", ""))
         sub_url = create_marzban_user(sub_name, gb_amount)
 
@@ -211,6 +219,7 @@ def callback_listener(call):
             )
             bot.edit_message_text(success_msg, chat_id, message_id, parse_mode="Markdown")
         else:
+            # برگشت دادن پول در صورت خطا در پنل
             cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (price, user_id))
             conn.commit()
             bot.answer_callback_query(call.id, "❌ خطا در ارتباط با سرور پنل برای ساخت کانفیگ!", show_alert=True)
@@ -220,7 +229,8 @@ def callback_listener(call):
     elif call.data == "wallet_menu":
         user_states.pop(chat_id, None)
         cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-        balance = cursor.fetchone()[0]
+        balance_row = cursor.fetchone()
+        balance = balance_row[0] if balance_row else 0
 
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
@@ -290,7 +300,8 @@ def callback_listener(call):
     elif call.data == "user_account":
         user_states.pop(chat_id, None)
         cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-        balance = cursor.fetchone()[0]
+        balance_row = cursor.fetchone()
+        balance = balance_row[0] if balance_row else 0
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(types.InlineKeyboardButton("بازگشت 🔙", callback_data="main_menu"))
         msg = f"👤 **اطلاعات حساب کاربری:**\n\nنام: {user_name}\nشناسه: `{user_id}`\nموجودی کیف پول: **{balance:,} تومان**"
@@ -398,7 +409,6 @@ def handle_text_messages(message):
             f"به نام: **{CARD_NAME}**\n\n"
             "📸 **یا اگر می‌خواهید با کیف پول پرداخت کنید روی دکمه زیر بزنید، یا عکس فیش واریزی را همین‌جا ارسال کنید.**"
         )
-        # ارسال به صورت پیام جدید تا دکمه‌ها درست زیر آخرین پیام قرار گیرند
         bot.send_message(chat_id, msg, parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(content_types=['photo'])
@@ -451,6 +461,4 @@ def handle_receipt(message):
             types.InlineKeyboardButton("❌ رد درخواست", callback_data=f"chargeno_{user.id}_0")
         )
 
-        bot.send_photo(ADMIN_ID, message.photo[-1].file_id, caption=caption, parse_mode="Markdown", reply_markup=admin_markup)
-
-bot.infinity_polling(skip_pending=True)
+        bot.send_photo(ADMIN_ID, message.photo
