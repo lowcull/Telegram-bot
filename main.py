@@ -249,11 +249,17 @@ def callback_listener(call):
 
         if action == "buyok":
             user_states[ADMIN_ID] = {"step": "waiting_for_link_to_send", "target_user": target_user_id, "plan": plan_name, "sub": sub_name, "price": price}
-            bot.send_message(ADMIN_ID, f"✍️ لطفاً **لینک اشتراک** مربوط به کاربر `{target_user_id}` را همین‌جا بفرستید تا برایش ارسال شود:")
-            bot.edit_message_caption("⏳ در انتظار ارسال لینک از طرف شما...", chat_id, message_id)
+            bot.send_message(ADMIN_ID, f"✍️ لطفاً **لینک اشتراک** مربوط به کاربر `{target_user_id}` را همین‌جا به عنوان متن بفرستید:")
+            try:
+                bot.edit_message_caption("⏳ در انتظار ارسال لینک از طرف شما...", chat_id, message_id, reply_markup=None)
+            except Exception:
+                pass
         else:
             bot.send_message(target_user_id, "❌ فیش واریزی یا درخواست شما توسط ادمین رد شد.")
-            bot.edit_message_caption("❌ رد شد.", chat_id, message_id)
+            try:
+                bot.edit_message_caption("❌ رد شد.", chat_id, message_id, reply_markup=None)
+            except Exception:
+                pass
 
     elif call.data.startswith("chargeok_") or call.data.startswith("chargeno_"):
         if user_id != ADMIN_ID:
@@ -267,10 +273,16 @@ def callback_listener(call):
             cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, target_user_id))
             conn.commit()
             bot.send_message(target_user_id, f"✅ مبلغ {amount:,} تومان به کیف پول شما واریز شد!")
-            bot.edit_message_caption("✅ شارژ کیف پول تایید شد.", chat_id, message_id)
+            try:
+                bot.edit_message_caption("✅ شارژ کیف پول تایید شد.", chat_id, message_id, reply_markup=None)
+            except Exception:
+                pass
         else:
             bot.send_message(target_user_id, "❌ درخواست شارژ کیف پول شما رد شد.")
-            bot.edit_message_caption("❌ رد شد.", chat_id, message_id)
+            try:
+                bot.edit_message_caption("❌ رد شد.", chat_id, message_id, reply_markup=None)
+            except Exception:
+                pass
 
     conn.close()
 
@@ -324,7 +336,7 @@ def handle_receipt(message):
     user = message.from_user
     if user.id == ADMIN_ID:
         if ADMIN_ID in user_states and user_states[ADMIN_ID].get("step") == "waiting_for_link_to_send":
-            bot.reply_to(message, "لطفاً لینک اتصال (متن) را ارسال کنید نه عکس!")
+            bot.reply_to(message, "لطفاً لینک اتصال (به صورت متن) را ارسال کنید، نه عکس!")
         return
 
     chat_id = message.chat.id
@@ -377,4 +389,4 @@ if __name__ == "__main__":
     t = threading.Thread(target=run_flask)
     t.start()
     bot.infinity_polling()
-    
+            
